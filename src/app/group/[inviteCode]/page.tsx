@@ -203,28 +203,46 @@ export default function GroupPage() {
       if (profileError) throw profileError;
       
       const myName = myProfile.name || myProfile.email?.split('@')[0] || 'unknown';
-      console.log('=== マッチングチェック開始 ===');
+      console.log('=== グループ内限定マッチングチェック開始 ===');
       console.log('自分の名前:', myName);
       console.log('登録した相手の名前:', targetName);
       console.log('グループID:', inviteData.id);
       
-      // 相手が自分を会いたいと思っているかチェック
-      // 1. 相手のプロフィールを名前で探す
+      // ✅ 修正: 同じグループの参加者のみから検索
+      // 1. 同じinvite_idを持つmatchesからuser_idを取得（グループ参加者）
+      const { data: groupMembers, error: groupMembersError } = await supabase
+        .from('matches')
+        .select('user_id')
+        .eq('invite_id', inviteData.id);
+      
+      if (groupMembersError) throw groupMembersError;
+      
+      // ユニークなuser_idを取得
+      const memberUserIds = [...new Set(groupMembers.map(m => m.user_id))];
+      console.log('グループ参加者のuser_id:', memberUserIds);
+      
+      if (memberUserIds.length === 0) {
+        console.log('グループに参加者が見つかりません');
+        return;
+      }
+      
+      // 2. グループ参加者の中から名前がマッチするユーザーを検索
       const { data: targetProfiles, error: targetProfileError } = await supabase
         .from('profiles')
         .select('id, name, email')
+        .in('id', memberUserIds)  // ✅ グループ参加者に限定
         .ilike('name', targetName); // 大文字小文字を区別しない検索
       
       if (targetProfileError) throw targetProfileError;
       
-      console.log('見つかった相手のプロフィール:', targetProfiles);
+      console.log('グループ内で見つかった相手のプロフィール:', targetProfiles);
       
       if (!targetProfiles || targetProfiles.length === 0) {
-        console.log('相手のプロフィールが見つかりません');
+        console.log('グループ内に該当する相手が見つかりません');
         return;
       }
       
-      // 2. 相手が自分の名前を登録しているかチェック
+      // 3. 相手が自分の名前を登録しているかチェック
       for (const targetProfile of targetProfiles) {
         console.log('チェック中の相手:', targetProfile);
         
@@ -243,7 +261,7 @@ export default function GroupPage() {
         if (reverseMatches && reverseMatches.length > 0) {
           console.log('🎉 相互マッチング発見！');
           
-          // 3. 両方のマッチレコードをmatched=trueに更新
+          // 4. 両方のマッチレコードをmatched=trueに更新
           
           // 自分のマッチを更新
           const { error: myUpdateError } = await supabase
@@ -251,7 +269,8 @@ export default function GroupPage() {
             .update({ matched: true })
             .eq('user_id', user.id)
             .eq('target_name', targetName)
-            .eq('invite_id', inviteData.id);
+            .eq('invite_id', inviteData.id)
+            .eq('matched', false);  // ✅ まだマッチしていないもののみ
           
           if (myUpdateError) {
             console.error('自分のマッチ更新エラー:', myUpdateError);
@@ -269,8 +288,8 @@ export default function GroupPage() {
             throw theirUpdateError;
           }
           
-          console.log('✅ マッチング更新完了');
-          break; // 最初のマッチで十分
+          console.log('✅ グループ内マッチング更新完了');
+          break; // 同姓同名の場合は最初のマッチのみ
         }
       }
     } catch (err) {
