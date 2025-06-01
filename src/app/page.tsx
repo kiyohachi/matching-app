@@ -58,7 +58,7 @@ export default function Home() {
           グループを作成して、相互に会いたいと思っている人同士を
           マッチングするシンプルなアプリです。
         </p>
-        
+
         <div className="space-y-4 max-w-md mx-auto">
           <button
             onClick={() => router.push('/auth?mode=signup')}

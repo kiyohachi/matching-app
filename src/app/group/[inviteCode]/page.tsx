@@ -190,7 +190,7 @@ export default function GroupPage() {
     }
   }
   
-  // マッチングをチェック（同じグループ内でのみ）
+  // マッチングをチェック（同じグループ内でのみ）- シンプル版
   async function checkForMatch(targetName: string) {
     try {
       // 自分のプロフィール情報を取得
@@ -203,93 +203,60 @@ export default function GroupPage() {
       if (profileError) throw profileError;
       
       const myName = myProfile.name || myProfile.email?.split('@')[0] || 'unknown';
-      console.log('=== グループ内限定マッチングチェック開始 ===');
+      console.log('=== シンプル版マッチングチェック開始 ===');
       console.log('自分の名前:', myName);
       console.log('登録した相手の名前:', targetName);
       console.log('グループID:', inviteData.id);
       
-      // ✅ 修正: 同じグループの参加者のみから検索
-      // 1. 同じinvite_idを持つmatchesからuser_idを取得（グループ参加者）
-      const { data: groupMembers, error: groupMembersError } = await supabase
+      // 同じグループで、入力した名前のユーザーが自分の名前を登録しているかチェック
+      const { data: mutualMatches, error: mutualError } = await supabase
         .from('matches')
-        .select('user_id')
-        .eq('invite_id', inviteData.id);
+        .select('id, user_id, target_name, matched')
+        .eq('target_name', myName)  // 自分の名前を登録している人
+        .eq('invite_id', inviteData.id)  // 同じグループ内
+        .eq('matched', false);  // まだマッチしていない
       
-      if (groupMembersError) throw groupMembersError;
+      if (mutualError) throw mutualError;
       
-      // ユニークなuser_idを取得
-      const memberUserIds = [...new Set(groupMembers.map(m => m.user_id))];
-      console.log('グループ参加者のuser_id:', memberUserIds);
+      console.log('自分の名前を登録している人:', mutualMatches);
       
-      if (memberUserIds.length === 0) {
-        console.log('グループに参加者が見つかりません');
+      if (!mutualMatches || mutualMatches.length === 0) {
+        console.log('誰も自分の名前を登録していません');
         return;
       }
       
-      // 2. グループ参加者の中から名前がマッチするユーザーを検索
-      const { data: targetProfiles, error: targetProfileError } = await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', memberUserIds)  // ✅ グループ参加者に限定
-        .ilike('name', targetName); // 大文字小文字を区別しない検索
-      
-      if (targetProfileError) throw targetProfileError;
-      
-      console.log('グループ内で見つかった相手のプロフィール:', targetProfiles);
-      
-      if (!targetProfiles || targetProfiles.length === 0) {
-        console.log('グループ内に該当する相手が見つかりません');
-        return;
-      }
-      
-      // 3. 相手が自分の名前を登録しているかチェック
-      for (const targetProfile of targetProfiles) {
-        console.log('チェック中の相手:', targetProfile);
+      // その中で、自分が入力した名前と一致するユーザーがいるかチェック
+      for (const potentialMatch of mutualMatches) {
+        // その人のプロフィール情報を取得
+        const { data: targetProfile, error: targetProfileError } = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', potentialMatch.user_id)
+          .single();
         
-        const { data: reverseMatches, error: reverseMatchError } = await supabase
-          .from('matches')
-          .select('id, user_id, target_name, matched')
-          .eq('user_id', targetProfile.id)
-          .eq('target_name', myName)
-          .eq('invite_id', inviteData.id)
-          .eq('matched', false);
+        if (targetProfileError) continue;
         
-        if (reverseMatchError) throw reverseMatchError;
+        const targetActualName = targetProfile.name || targetProfile.email?.split('@')[0] || 'unknown';
         
-        console.log('相手からの逆マッチング:', reverseMatches);
-        
-        if (reverseMatches && reverseMatches.length > 0) {
+        if (targetActualName.toLowerCase() === targetName.toLowerCase()) {
           console.log('🎉 相互マッチング発見！');
           
-          // 4. 両方のマッチレコードをmatched=trueに更新
-          
-          // 自分のマッチを更新
+          // 自分のマッチレコードをmatched=trueに更新
           const { error: myUpdateError } = await supabase
             .from('matches')
             .update({ matched: true })
             .eq('user_id', user.id)
             .eq('target_name', targetName)
             .eq('invite_id', inviteData.id)
-            .eq('matched', false);  // ✅ まだマッチしていないもののみ
+            .eq('matched', false);
           
           if (myUpdateError) {
             console.error('自分のマッチ更新エラー:', myUpdateError);
             throw myUpdateError;
           }
           
-          // 相手のマッチを更新
-          const { error: theirUpdateError } = await supabase
-            .from('matches')
-            .update({ matched: true })
-            .eq('id', reverseMatches[0].id);
-          
-          if (theirUpdateError) {
-            console.error('相手のマッチ更新エラー:', theirUpdateError);
-            throw theirUpdateError;
-          }
-          
-          console.log('✅ グループ内マッチング更新完了');
-          break; // 同姓同名の場合は最初のマッチのみ
+          console.log('✅ 自分のマッチング更新完了');
+          break;
         }
       }
     } catch (err) {

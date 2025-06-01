@@ -43,11 +43,13 @@ export default function InvitePage() {
         setInviteData(data);
         setLoading(false);
         
-        // クリック数を増加
+        // クリック数を増加（認証済みユーザーのみ）
+        if (session) {
         await supabase
           .from('invites')
           .update({ clicks: data.clicks + 1 })
           .eq('id', data.id);
+        }
         
       } catch (err) {
         console.error('エラー:', err);
