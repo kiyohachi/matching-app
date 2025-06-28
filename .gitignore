@@ -43,5 +43,4 @@ error.txt
 node_modules/
 .next/
 .env.local
-error.txt
 *.log
