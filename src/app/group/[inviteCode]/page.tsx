@@ -69,7 +69,15 @@ export default function GroupPage() {
       console.log('userId:', userId);
       console.log('inviteId:', inviteId);
       
-      // まずマッチデータを取得
+      // 現在のセッション状態を確認
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('現在のセッション状態:', session ? 'ログイン済み' : 'ログインなし');
+      if (sessionError) {
+        console.error('セッションエラー:', sessionError);
+      }
+      
+      // まずマッチデータを取得（エラー詳細改善）
+      console.log('マッチデータクエリを実行中...');
       const { data: matchesData, error: matchesError } = await supabase
         .from('matches')
         .select('*')
@@ -77,13 +85,22 @@ export default function GroupPage() {
         .eq('invite_id', inviteId);
       
       if (matchesError) {
-        console.error('マッチング情報の取得エラー（詳細）:');
+        console.error('=== マッチング情報の取得エラー（詳細）===');
         console.error('エラーコード:', matchesError.code);
         console.error('エラーメッセージ:', matchesError.message);
         console.error('エラー詳細:', matchesError.details);
         console.error('エラーヒント:', matchesError.hint);
         console.error('完全なエラーオブジェクト:', JSON.stringify(matchesError, null, 2));
-        throw matchesError;
+        
+        // 500エラーの場合、RLSポリシーの問題の可能性
+        if (matchesError.message?.includes('500') || matchesError.code === 'PGRST301') {
+          console.error('⚠️ これは500エラーです。RLSポリシーまたはテーブル設定に問題がある可能性があります');
+        }
+        
+        // エラーを再スローせずに、空配列で続行
+        console.log('エラーのため空配列を設定します');
+        setMyMatches([]);
+        return;
       }
       
       console.log('取得したマッチデータ:', matchesData);
