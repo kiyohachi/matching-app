@@ -23,10 +23,31 @@ export default function GroupPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // ユーザーがログイン済みかチェック
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // セッション取得時のエラーハンドリングを追加
+        let session = null;
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.warn('セッション取得エラー:', sessionError);
+            // 古いトークンエラーの場合はサインアウトして招待ページへ
+            if (sessionError.message.includes('refresh') || sessionError.message.includes('token')) {
+              await supabase.auth.signOut();
+              router.push(`/invite/${inviteCode}`);
+              return;
+            }
+          } else {
+            session = sessionData.session;
+          }
+        } catch (authError) {
+          console.warn('認証エラー:', authError);
+          // 認証エラーの場合は招待ページにリダイレクト
+          await supabase.auth.signOut();
+          router.push(`/invite/${inviteCode}`);
+          return;
+        }
         
-        if (sessionError || !session) {
+        if (!session) {
           router.push(`/invite/${inviteCode}`);
           return;
         }
@@ -62,96 +83,58 @@ export default function GroupPage() {
     fetchData();
   }, [inviteCode, router]);
   
-  // このグループの自分のマッチング情報を取得
+  // マッチング情報取得をAPIエンドポイント経由に変更
   async function fetchMyMatches(userId: string, inviteId: string) {
     try {
-      console.log('=== fetchMyMatches開始 ===');
+      console.log('=== fetchMyMatches開始（API経由）===');
       console.log('userId:', userId);
       console.log('inviteId:', inviteId);
       
-      // 現在のセッション状態を確認
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('現在のセッション状態:', session ? 'ログイン済み' : 'ログインなし');
-      if (sessionError) {
-        console.error('セッションエラー:', sessionError);
+      // 新しいマッチ一覧取得APIを使用
+      const response = await fetch(`/api/matching/get-matches?userId=${userId}&inviteId=${inviteId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'マッチ一覧の取得に失敗しました');
       }
+
+      const result = await response.json();
+      console.log('マッチ一覧取得結果:', result);
       
-      // まずマッチデータを取得（エラー詳細改善）
-      console.log('マッチデータクエリを実行中...');
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('invite_id', inviteId);
+      setMyMatches(result.matches || []);
       
-      if (matchesError) {
-        console.error('=== マッチング情報の取得エラー（詳細）===');
-        console.error('エラーコード:', matchesError.code);
-        console.error('エラーメッセージ:', matchesError.message);
-        console.error('エラー詳細:', matchesError.details);
-        console.error('エラーヒント:', matchesError.hint);
-        console.error('完全なエラーオブジェクト:', JSON.stringify(matchesError, null, 2));
+    } catch (err: any) {
+      console.error('マッチング情報の取得エラー:', err);
+      // API経由でエラーの場合、フォールバックとして直接クエリを試行
+      try {
+        console.log('フォールバック：直接クエリを実行');
+        const { data: matchesData, error: matchesError } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('invite_id', inviteId)
+          .order('created_at', { ascending: false });
         
-        // 500エラーの場合、RLSポリシーの問題の可能性
-        if (matchesError.message?.includes('500') || matchesError.code === 'PGRST301') {
-          console.error('⚠️ これは500エラーです。RLSポリシーまたはテーブル設定に問題がある可能性があります');
+        if (matchesError) {
+          console.error('フォールバッククエリもエラー:', matchesError);
+          setMyMatches([]);
+        } else {
+          console.log('フォールバック成功:', matchesData);
+          setMyMatches(matchesData || []);
         }
-        
-        // エラーを再スローせずに、空配列で続行
-        console.log('エラーのため空配列を設定します');
-        setMyMatches([]);
-        return;
-      }
-      
-      console.log('取得したマッチデータ:', matchesData);
-      
-      // マッチデータがある場合、関連するプロフィール情報を取得
-      if (matchesData && matchesData.length > 0) {
-        // ユニークなユーザーIDを収集
-        const userIds = [...new Set(matchesData.map(m => m.user_id))];
-        console.log('プロフィール取得対象のユーザーID:', userIds);
-        
-        // プロフィール情報を取得
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', userIds);
-        
-        if (profilesError) {
-          console.error('プロフィール情報の取得エラー:');
-          console.error('エラーコード:', profilesError.code);
-          console.error('エラーメッセージ:', profilesError.message);
-          console.error('完全なエラーオブジェクト:', JSON.stringify(profilesError, null, 2));
-        }
-        
-        console.log('取得したプロフィールデータ:', profilesData);
-        
-        // マッチデータにプロフィール情報を結合
-        const enrichedMatches = matchesData.map(match => {
-          const profile = profilesData?.find(p => p.id === match.user_id);
-          return {
-            ...match,
-            profile: profile || null
-          };
-        });
-        
-        setMyMatches(enrichedMatches);
-      } else {
+      } catch (fallbackErr) {
+        console.error('フォールバックエラー:', fallbackErr);
         setMyMatches([]);
       }
-    } catch (err) {
-      console.error('マッチング情報の取得エラー:');
-      console.error('エラータイプ:', typeof err);
-      console.error('エラー内容:', err);
-      if (err && typeof err === 'object') {
-        console.error('エラーの文字列化:', JSON.stringify(err, null, 2));
-      }
-      // エラーでもアプリを続行できるように空配列をセット
-      setMyMatches([]);
     }
   }
   
-  // 会いたい人を登録
+  // 会いたい人を登録 - 新しいAPIエンドポイント使用
   async function handleAddTarget() {
     if (!targetName.trim()) {
       alert('名前を入力してください');
@@ -161,7 +144,7 @@ export default function GroupPage() {
     try {
       setSuccessMessage('');
       
-      // 既に同じ名前で登録していないかチェック（このグループ内で）
+      // 既に同じ名前で登録していないかチェック（ローカルで）
       const existingMatch = myMatches.find(
         match => match.target_name.toLowerCase() === targetName.toLowerCase()
       );
@@ -171,113 +154,43 @@ export default function GroupPage() {
         return;
       }
       
-      // 会いたい人を登録
-      const { data, error } = await supabase
-        .from('matches')
-        .insert([
-          {
-            user_id: user.id,
-            target_name: targetName,
-            matched: false,
-            notified: false,
-            invite_id: inviteData.id
-          }
-        ])
-        .select('*');  // 簡略化: 外部キー参照を削除
-      
-      if (error) {
-        console.error('登録エラー（詳細）:', error);
-        throw error;
+      // 新しいマッチング登録APIを使用
+      const response = await fetch('/api/matching/add-target', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          targetName: targetName,
+          inviteId: inviteData.id
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'マッチング登録に失敗しました');
       }
+
+      const result = await response.json();
+      console.log('マッチング登録結果:', result);
       
-      // 相手も自分を会いたいと思っているかチェック
-      await checkForMatch(targetName);
-      
-      // マッチング情報を再取得
-      await fetchMyMatches(user.id, inviteData.id);
-      
+      // 成功時の処理
+      setMyMatches(result.matches || []);
       setTargetName('');
-      setSuccessMessage('会いたい人を登録しました！');
+      
+      if (result.isMatch) {
+        setSuccessMessage('🎉 マッチング成立しました！相手もあなたに会いたいと思っています！');
+      } else {
+        setSuccessMessage('会いたい人を登録しました！');
+      }
       
       // 3秒後にメッセージを消す
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
+      
+    } catch (err: any) {
       console.error('登録エラー:', err);
-      alert('登録に失敗しました');
-    }
-  }
-  
-  // マッチングをチェック（同じグループ内でのみ）- シンプル版
-  async function checkForMatch(targetName: string) {
-    try {
-      // 自分のプロフィール情報を取得
-      const { data: myProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileError) throw profileError;
-      
-      const myName = myProfile.name || myProfile.email?.split('@')[0] || 'unknown';
-      console.log('=== シンプル版マッチングチェック開始 ===');
-      console.log('自分の名前:', myName);
-      console.log('登録した相手の名前:', targetName);
-      console.log('グループID:', inviteData.id);
-      
-      // 同じグループで、入力した名前のユーザーが自分の名前を登録しているかチェック
-      const { data: mutualMatches, error: mutualError } = await supabase
-        .from('matches')
-        .select('id, user_id, target_name, matched')
-        .eq('target_name', myName)  // 自分の名前を登録している人
-        .eq('invite_id', inviteData.id)  // 同じグループ内
-        .eq('matched', false);  // まだマッチしていない
-      
-      if (mutualError) throw mutualError;
-      
-      console.log('自分の名前を登録している人:', mutualMatches);
-      
-      if (!mutualMatches || mutualMatches.length === 0) {
-        console.log('誰も自分の名前を登録していません');
-        return;
-      }
-      
-      // その中で、自分が入力した名前と一致するユーザーがいるかチェック
-      for (const potentialMatch of mutualMatches) {
-        // その人のプロフィール情報を取得
-        const { data: targetProfile, error: targetProfileError } = await supabase
-          .from('profiles')
-          .select('name, email')
-          .eq('id', potentialMatch.user_id)
-          .single();
-        
-        if (targetProfileError) continue;
-        
-        const targetActualName = targetProfile.name || targetProfile.email?.split('@')[0] || 'unknown';
-        
-        if (targetActualName.toLowerCase() === targetName.toLowerCase()) {
-          console.log('🎉 相互マッチング発見！');
-          
-          // 自分のマッチレコードをmatched=trueに更新
-          const { error: myUpdateError } = await supabase
-            .from('matches')
-            .update({ matched: true })
-            .eq('user_id', user.id)
-            .eq('target_name', targetName)
-            .eq('invite_id', inviteData.id)
-            .eq('matched', false);
-          
-          if (myUpdateError) {
-            console.error('自分のマッチ更新エラー:', myUpdateError);
-            throw myUpdateError;
-          }
-          
-          console.log('✅ 自分のマッチング更新完了');
-          break;
-        }
-      }
-    } catch (err) {
-      console.error('マッチングチェックエラー:', err);
+      alert(err.message || '登録に失敗しました');
     }
   }
 

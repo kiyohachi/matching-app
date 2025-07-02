@@ -18,8 +18,25 @@ export default function InvitePage() {
   useEffect(() => {
     async function fetchInviteData() {
       try {
-        // まず、ユーザーがログイン済みかチェック
-        const { data: { session } } = await supabase.auth.getSession();
+        // セッション取得時のエラーハンドリングを追加
+        let session = null;
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.warn('セッション取得エラー（無視して続行）:', sessionError);
+            // 古いトークンエラーの場合はセッションをクリア
+            if (sessionError.message.includes('refresh') || sessionError.message.includes('token')) {
+              await supabase.auth.signOut();
+            }
+          } else {
+            session = sessionData.session;
+          }
+        } catch (authError) {
+          console.warn('認証エラー（無視して続行）:', authError);
+          // 認証エラーの場合はセッションをクリア
+          await supabase.auth.signOut();
+        }
         
         if (session) {
           // ログイン済みの場合はグループページに直接リダイレクト

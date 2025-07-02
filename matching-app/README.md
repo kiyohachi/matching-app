@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 旧友再会マッチングアプリ
 
-## Getting Started
+LINEログインとメール認証の両方に対応した旧友再会マッチングアプリです。
 
-First, run the development server:
+## 🎯 主な機能
+
+- **LINEログイン**: 簡単・安全なLINE認証
+- **メール認証**: 従来のメール＋パスワード認証
+- **招待リンク生成**: グループごとの招待リンク作成
+- **マッチング機能**: 参加者同士のマッチング
+
+## 🚀 セットアップ手順
+
+### 1. 依存関係のインストール
+
+```bash
+npm install
+```
+
+### 2. 環境変数の設定
+
+`matching-app/.env.local`ファイルを作成し、以下の環境変数を設定してください：
+
+```env
+# Supabase設定
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# LINE Login設定
+LINE_CHANNEL_ID=your_line_channel_id
+LINE_CHANNEL_SECRET=your_line_channel_secret
+
+# アプリケーション設定
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+### 3. データベーススキーマの更新
+
+SupabaseのSQL Editorで以下のファイルを実行してください：
+
+```bash
+# 基本的なRLSポリシー
+matching-app/rls-security-policies.sql
+
+# LINEログイン対応
+matching-app/line-login-migration.sql
+```
+
+### 4. LINE Developersコンソールの設定
+
+1. [LINE Developers](https://developers.line.biz/)にアクセス
+2. 新しいチャンネルを作成（LINE Login）
+3. Callback URLを設定: `http://localhost:3000/api/auth/line/callback`
+4. Channel IDとChannel Secretを`.env.local`に設定
+
+### 5. 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📁 プロジェクト構造
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+matching-app/
+├── src/
+│   ├── app/
+│   │   ├── api/auth/line/       # LINE認証APIルート
+│   │   ├── auth/               # 認証ページ
+│   │   └── dashboard/          # ダッシュボード
+│   ├── components/
+│   │   └── LineLoginButton.tsx # LINEログインボタン
+│   └── lib/
+│       ├── supabase.ts         # Supabaseクライアント
+│       └── lineAuth.ts         # LINE認証ヘルパー
+├── line-login-migration.sql    # データベーススキーマ更新
+└── rls-security-policies.sql   # 基本RLSポリシー
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔧 技術スタック
 
-## Learn More
+- **フロントエンド**: Next.js 15.3.2, React 19, TypeScript
+- **スタイリング**: Tailwind CSS
+- **バックエンド**: Supabase (認証・データベース)
+- **認証**: LINE Login + Supabase Auth
 
-To learn more about Next.js, take a look at the following resources:
+## 🔐 セキュリティ機能
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Row Level Security (RLS) による適切なアクセス制御
+- CSRF攻撃防止 (state, nonce)
+- JWT トークン検証
+- 適切な環境変数管理
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 本番環境デプロイ
 
-## Deploy on Vercel
+1. `NEXT_PUBLIC_BASE_URL`を本番URLに変更
+2. LINE DevelopersのCallback URLを本番URLに更新
+3. Supabaseの本番環境設定を適用
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**開発者**: プログラミング学習中 🌱
+**更新日**: 2024年12月28日
