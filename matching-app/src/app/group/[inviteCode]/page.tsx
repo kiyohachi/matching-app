@@ -17,6 +17,11 @@ export default function GroupPage() {
   const [myMatches, setMyMatches] = useState<any[]>([]);
   const [successMessage, setSuccessMessage] = useState('');
   
+  // 【新機能】いいね制限状況
+  const [likeStatus, setLikeStatus] = useState<any>(null);
+  const [isLimitReached, setIsLimitReached] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
   const router = useRouter();
 
   // ユーザー情報とグループ情報を取得
@@ -72,6 +77,9 @@ export default function GroupPage() {
         // このグループの自分のマッチング情報を取得
         await fetchMyMatches(session.user.id, inviteData.id);
         
+        // 【新機能】いいね制限状況を取得
+        await fetchLikeStatus(session.user.id);
+        
         setLoading(false);
       } catch (err) {
         console.error('エラー:', err);
@@ -82,6 +90,39 @@ export default function GroupPage() {
     
     fetchData();
   }, [inviteCode, router]);
+
+  // 【新機能】いいね制限状況取得
+  async function fetchLikeStatus(userId: string) {
+    try {
+      console.log('=== いいね状況取得開始 ===');
+      const response = await fetch(`/api/matching/get-like-status?userId=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('いいね状況の取得に失敗しました');
+      }
+
+      const result = await response.json();
+      console.log('いいね状況:', result);
+      
+      setLikeStatus(result);
+      setIsLimitReached(!result.limit.allowed);
+      
+    } catch (err: any) {
+      console.error('いいね状況取得エラー:', err);
+      // エラー時はデフォルト値を設定
+      setLikeStatus({
+        plan: { type: 'free', isPremium: false },
+        usage: { remainingLikes: 0 },
+        limit: { allowed: false, message: '制限情報を取得できません' }
+      });
+      setIsLimitReached(true);
+    }
+  }
   
   // マッチング情報取得をAPIエンドポイント経由に変更
   async function fetchMyMatches(userId: string, inviteId: string) {
@@ -148,17 +189,38 @@ export default function GroupPage() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'マッチング登録に失敗しました');
-      }
-
       const result = await response.json();
       console.log('マッチング登録結果:', result);
+      
+      // 【新機能】制限エラーのハンドリング
+      if (!response.ok) {
+        if (result.error === 'like_limit_exceeded') {
+          setShowPaymentModal(true);
+          return;
+        }
+        throw new Error(result.error || 'マッチング登録に失敗しました');
+      }
       
       // 成功時の処理
       setMyMatches(result.matches || []);
       setTargetName('');
+      
+      // 【新機能】残りいいね数を更新
+      if (result.remainingLikes !== undefined) {
+        if (likeStatus) {
+          setLikeStatus((prev: any) => ({
+            ...prev,
+            usage: {
+              ...prev.usage,
+              remainingLikes: result.remainingLikes
+            },
+            limit: {
+              ...prev.limit,
+              allowed: result.remainingLikes > 0
+            }
+          }));
+        }
+      }
       
       if (result.isMatch) {
         setSuccessMessage('🎉 マッチング成立しました！相手もあなたに会いたいと思っています！');
@@ -173,6 +235,11 @@ export default function GroupPage() {
       console.error('登録エラー:', err);
       alert(err.message || '登録に失敗しました');
     }
+  }
+
+  // 【新機能】課金画面への誘導
+  function handlePaymentOptions() {
+    setShowPaymentModal(true);
   }
 
   if (loading) {
@@ -191,6 +258,33 @@ export default function GroupPage() {
       <p className="text-center text-gray-600 mb-8">
         会いたい人を登録して、マッチングを待ちましょう
       </p>
+      
+      {/* 【新機能】いいね制限状況表示 */}
+      {likeStatus && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-blue-800">
+                {likeStatus.plan.isPremium ? '✨ プレミアムプラン' : '🆓 無料プラン'}
+              </p>
+              <p className="text-sm text-blue-600">
+                {likeStatus.plan.isPremium ? 
+                  '無制限いいね' : 
+                  `残りいいね数: ${likeStatus.usage.remainingLikes}/${likeStatus.usage.totalAvailable}`
+                }
+              </p>
+            </div>
+            {!likeStatus.plan.isPremium && (
+              <button
+                onClick={handlePaymentOptions}
+                className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+              >
+                アップグレード
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       
       {error && (
         <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
@@ -214,14 +308,32 @@ export default function GroupPage() {
             onChange={(e) => setTargetName(e.target.value)}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
             placeholder="会いたい人の名前"
+            disabled={isLimitReached}
           />
           <button
-            onClick={handleAddTarget}
-            className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600"
+            onClick={isLimitReached ? handlePaymentOptions : handleAddTarget}
+            className={`px-4 py-2 rounded-r-md ${
+              isLimitReached 
+                ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
           >
-            追加
+            {isLimitReached ? '課金' : '追加'}
           </button>
         </div>
+        
+        {/* 【新機能】制限メッセージ */}
+        {isLimitReached && (
+          <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md mb-4">
+            <p className="text-sm text-yellow-700">
+              ⚠️ 今月のいいね制限に達しました
+            </p>
+            <p className="text-xs text-yellow-600 mt-1">
+              プレミアムプランで無制限いいね、または追加いいねを購入できます
+            </p>
+          </div>
+        )}
+        
         <p className="text-sm text-gray-600">
           ※相手も同様にあなたの名前を登録すると、マッチングが成立します
         </p>
@@ -265,6 +377,37 @@ export default function GroupPage() {
                 </li>
               ))}
           </ul>
+        </div>
+      )}
+
+      {/* 【新機能】課金オプションモーダル */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">いいね制限に達しました</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              今月のいいね制限を超えました。以下のオプションからお選びください：
+            </p>
+            
+            <div className="space-y-3">
+              <button className="w-full bg-purple-500 text-white py-3 px-4 rounded-md hover:bg-purple-600">
+                ✨ プレミアムプラン（月1,000円）
+                <div className="text-xs text-purple-100 mt-1">無制限いいね</div>
+              </button>
+              
+              <button className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-600">
+                💰 追加いいね（300円）
+                <div className="text-xs text-orange-100 mt-1">1回限り</div>
+              </button>
+              
+              <button 
+                onClick={() => setShowPaymentModal(false)}
+                className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

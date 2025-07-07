@@ -25,6 +25,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 【新機能】いいね制限チェック
+    console.log('=== いいね制限チェック開始 ===');
+    const { data: limitCheck, error: limitError } = await supabase
+      .rpc('check_like_limit', { p_user_id: userId });
+
+    if (limitError) {
+      console.error('制限チェックエラー:', limitError);
+      return NextResponse.json(
+        { error: '制限チェックに失敗しました' },
+        { status: 500 }
+      );
+    }
+
+    const limitResult = limitCheck?.[0];
+    console.log('制限チェック結果:', limitResult);
+
+    // 制限に達している場合はエラーレスポンス
+    if (!limitResult?.allowed) {
+      console.log('❌ いいね制限に達しています');
+      return NextResponse.json(
+        { 
+          error: 'like_limit_exceeded',
+          message: limitResult?.message || '今月のいいね制限に達しました',
+          remainingLikes: limitResult?.remaining_likes || 0,
+          limitExceeded: true
+        },
+        { status: 403 }
+      );
+    }
+
+    console.log('✅ いいね制限OK、残り:', limitResult?.remaining_likes);
+
     // 既存のターゲットをチェック（同じグループ内で）
     const { data: existingMatch } = await supabase
       .from('matches')
@@ -41,6 +73,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 【新機能】いいね消費処理
+    console.log('=== いいね消費処理開始 ===');
+    const { data: consumeResult, error: consumeError } = await supabase
+      .rpc('consume_like', { p_user_id: userId });
+
+    if (consumeError) {
+      console.error('いいね消費エラー:', consumeError);
+      return NextResponse.json(
+        { error: 'いいね消費処理に失敗しました' },
+        { status: 500 }
+      );
+    }
+
+    if (!consumeResult) {
+      console.log('❌ いいね消費失敗（制限に達している可能性）');
+      return NextResponse.json(
+        { 
+          error: 'like_limit_exceeded',
+          message: '今月のいいね制限に達しました',
+          remainingLikes: 0,
+          limitExceeded: true
+        },
+        { status: 403 }
+      );
+    }
+
+    console.log('✅ いいね消費完了');
+
     // 会いたい人を登録
     const { data: insertData, error: insertError } = await supabase
       .from('matches')
@@ -50,7 +110,8 @@ export async function POST(request: NextRequest) {
           target_name: targetName,
           matched: false,
           notified: false,
-          invite_id: inviteId
+          invite_id: inviteId,
+          consumed_like: true // いいねを消費したことを記録
         }
       ])
       .select('*');
@@ -92,11 +153,23 @@ export async function POST(request: NextRequest) {
       console.error('マッチ一覧取得エラー:', fetchError);
     }
 
+    // 【新機能】現在の残りいいね数を取得
+    const { data: currentUsage, error: usageError } = await supabase
+      .rpc('get_like_usage_current_month', { p_user_id: userId });
+
+    let remainingLikes = 0;
+    if (!usageError && currentUsage?.[0]) {
+      const usage = currentUsage[0];
+      remainingLikes = usage.total_available - usage.used_count;
+    }
+
     return NextResponse.json({
       success: true,
       message: '会いたい人を登録しました！',
       isMatch: !!matchResult,
-      matches: userMatches || []
+      matches: userMatches || [],
+      remainingLikes: remainingLikes, // 残りいいね数を返す
+      likeConsumed: true // いいねを消費したことを通知
     });
 
   } catch (error) {
