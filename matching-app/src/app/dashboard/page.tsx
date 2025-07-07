@@ -205,12 +205,20 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">ダッシュボード</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
-        >
-          ログアウト
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => router.push('/admin/test')}
+            className="bg-yellow-500 text-white px-3 py-2 rounded-md hover:bg-yellow-600 text-sm"
+          >
+            🧪 テスト
+          </button>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+          >
+            ログアウト
+          </button>
+        </div>
       </div>
 
       {/* 【新機能】いいね制限状況表示 */}
@@ -379,18 +387,32 @@ export default function Dashboard() {
               </div>
 
               {/* 単発購入 */}
-              <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-semibold text-orange-800">💰 追加いいね</h4>
-                  <span className="text-orange-600 font-bold">300円</span>
+              {!likeStatus?.plan?.isPremium && (
+                <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-orange-800">💰 追加いいね</h4>
+                    <span className="text-orange-600 font-bold">300円</span>
+                  </div>
+                  <p className="text-sm text-orange-700 mb-3">
+                    今月限定で追加で1回いいねできます
+                  </p>
+                  <button className="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600">
+                    追加いいねを購入
+                  </button>
                 </div>
-                <p className="text-sm text-orange-700 mb-3">
-                  今月限定で追加で1回いいねできます
-                </p>
-                <button className="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600">
-                  追加いいねを購入
-                </button>
-              </div>
+              )}
+
+              {/* プレミアムプランユーザー向けのメッセージ */}
+              {likeStatus?.plan?.isPremium && (
+                <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-purple-800">✨ プレミアムプラン加入中</h4>
+                  </div>
+                  <p className="text-sm text-purple-700">
+                    無制限いいねをお楽しみいただけます。追加購入は不要です。
+                  </p>
+                </div>
+              )}
               
               <button 
                 onClick={() => setShowPaymentModal(false)}

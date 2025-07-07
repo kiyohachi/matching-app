@@ -395,10 +395,21 @@ export default function GroupPage() {
                 <div className="text-xs text-purple-100 mt-1">無制限いいね</div>
               </button>
               
-              <button className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-600">
-                💰 追加いいね（300円）
-                <div className="text-xs text-orange-100 mt-1">1回限り</div>
-              </button>
+              {/* 追加いいね購入 */}
+              {!likeStatus?.plan?.isPremium && (
+                <button className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-600">
+                  💰 追加いいね（300円）
+                  <div className="text-xs text-orange-100 mt-1">1回限り</div>
+                </button>
+              )}
+
+              {/* プレミアムプランユーザー向けのメッセージ */}
+              {likeStatus?.plan?.isPremium && (
+                <div className="w-full bg-purple-100 text-purple-700 py-3 px-4 rounded-md text-center">
+                  <div className="font-medium">✨ プレミアムプラン加入中</div>
+                  <div className="text-xs mt-1">無制限いいねをお楽しみいただけます</div>
+                </div>
+              )}
               
               <button 
                 onClick={() => setShowPaymentModal(false)}
