@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
@@ -10,11 +10,105 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [newInviteName, setNewInviteName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState('');
   
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    async function fetchData() {
+    async function handleLineLogin() {
+      // URLパラメータからLINEログイン情報を取得
+      const lineLogin = searchParams.get('line_login');
+      const userId = searchParams.get('user_id');
+      const email = searchParams.get('email');
+      const tempPassword = searchParams.get('temp_password');
+      const displayName = searchParams.get('display_name');
+      const loginType = searchParams.get('login_type');
+
+      if (lineLogin === 'success' && email && userId) {
+        console.log('LINEログイン自動ログイン開始...');
+        
+        // displayNameを安全にデコード
+        let decodedDisplayName = '';
+        if (displayName) {
+          try {
+            decodedDisplayName = decodeURIComponent(displayName);
+          } catch (decodeError) {
+            console.error('displayNameのデコードエラー:', decodeError);
+            decodedDisplayName = displayName || 'LINEユーザー';
+          }
+        }
+        
+        console.log('ログイン情報:', {
+          email: email,
+          userId: userId,
+          displayName: decodedDisplayName,
+          loginType: loginType
+        });
+        
+        try {
+          // 既存ユーザーでも新規ユーザーでも一時パスワードでログイン
+          console.log('LINEユーザーの一時パスワードログイン（' + (loginType === 'line_existing' ? '既存' : '新規') + '）');
+          
+          if (!tempPassword) {
+            console.error('一時パスワードが見つかりません');
+            setError('ログイン情報が不足しています。');
+            router.push('/auth');
+            return;
+          }
+          
+          // 一時パスワードを使ってログイン
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: tempPassword,
+          });
+
+          if (signInError) {
+            console.error('自動ログインエラー:', signInError);
+            console.error('エラーの詳細:', {
+              message: signInError.message,
+              code: signInError.code,
+              status: signInError.status
+            });
+            console.error('使用したログイン情報:', {
+              email: email,
+              passwordLength: tempPassword.length
+            });
+            setError('自動ログインに失敗しました: ' + signInError.message + ' 再度ログインしてください。');
+            router.push('/auth');
+            return;
+          }
+
+          console.log('自動ログイン成功');
+          console.log('ログイン結果:', signInData);
+          
+          // URLパラメータをクリア
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('line_login');
+          newUrl.searchParams.delete('user_id');
+          newUrl.searchParams.delete('email');
+          newUrl.searchParams.delete('temp_password');
+          newUrl.searchParams.delete('display_name');
+          newUrl.searchParams.delete('login_type');
+          
+          window.history.replaceState({}, '', newUrl.toString());
+          
+          // ダッシュボードデータの取得へ続く
+          await fetchDashboardData();
+          
+        } catch (err) {
+          console.error('自動ログインエラー:', err);
+          setError('自動ログインに失敗しました。');
+          router.push('/auth');
+        }
+      } else {
+        console.log('通常のセッションチェック開始');
+        // 通常のセッションチェック
+        await fetchDashboardData();
+      }
+    }
+
+    async function fetchDashboardData() {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
@@ -45,8 +139,8 @@ export default function Dashboard() {
       }
     }
     
-    fetchData();
-  }, [router]);
+    handleLineLogin();
+  }, [router, searchParams]);
   
   // 新しい招待リンクを作成
   async function createInvite() {
@@ -58,31 +152,33 @@ export default function Dashboard() {
     try {
       setIsCreating(true);
       
-      // ランダムな招待コードを生成
-      const inviteCode = Math.random().toString(36).substring(2, 10);
-      
-      const { data, error } = await supabase
-        .from('invites')
-        .insert([
-          {
-            user_id: user.id,
-            invite_code: inviteCode,
-            name: newInviteName,
-            clicks: 0,
-            signups: 0
-          }
-        ])
-        .select('*');
-      
-      if (error) throw error;
+      // 新しい招待作成APIを使用
+      const response = await fetch('/api/invites/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          groupName: newInviteName
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '招待リンクの作成に失敗しました');
+      }
+
+      const result = await response.json();
+      console.log('招待作成結果:', result);
       
       // 招待リストを更新
-      setInvites([data[0], ...invites]);
+      setInvites([result.invite, ...invites]);
       setNewInviteName('');
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('招待作成エラー:', err);
-      alert('招待リンクの作成に失敗しました');
+      alert(err.message || '招待リンクの作成に失敗しました');
     } finally {
       setIsCreating(false);
     }
@@ -109,7 +205,26 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <p>読み込み中...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+        <button
+          onClick={() => router.push('/auth')}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          ログインページに戻る
+        </button>
       </div>
     );
   }

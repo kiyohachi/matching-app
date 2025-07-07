@@ -62,10 +62,19 @@ export default function InvitePage() {
         
         // クリック数を増加（認証済みユーザーのみ）
         if (session) {
-        await supabase
-          .from('invites')
-          .update({ clicks: data.clicks + 1 })
-          .eq('id', data.id);
+          try {
+            await fetch('/api/invites/update-clicks', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                inviteCode: inviteCode
+              }),
+            });
+          } catch (clickError) {
+            console.warn('クリック数更新エラー（無視）:', clickError);
+          }
         }
         
       } catch (err) {

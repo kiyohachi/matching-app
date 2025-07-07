@@ -6,10 +6,8 @@ export async function GET(request: NextRequest) {
     console.log('NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
     console.log('LINE_CHANNEL_ID:', process.env.LINE_CHANNEL_ID ? '設定済み' : '未設定');
     
-    // 現在のホストとポートを取得
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
+    // ポート3000で固定
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
     // LINE認証URL生成
     const lineAuthUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');

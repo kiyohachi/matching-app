@@ -110,27 +110,8 @@ export default function GroupPage() {
       
     } catch (err: any) {
       console.error('マッチング情報の取得エラー:', err);
-      // API経由でエラーの場合、フォールバックとして直接クエリを試行
-      try {
-        console.log('フォールバック：直接クエリを実行');
-        const { data: matchesData, error: matchesError } = await supabase
-          .from('matches')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('invite_id', inviteId)
-          .order('created_at', { ascending: false });
-        
-        if (matchesError) {
-          console.error('フォールバッククエリもエラー:', matchesError);
-          setMyMatches([]);
-        } else {
-          console.log('フォールバック成功:', matchesData);
-          setMyMatches(matchesData || []);
-        }
-      } catch (fallbackErr) {
-        console.error('フォールバックエラー:', fallbackErr);
-        setMyMatches([]);
-      }
+      // エラー時は空配列を設定
+      setMyMatches([]);
     }
   }
   

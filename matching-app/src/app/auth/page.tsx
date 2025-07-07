@@ -64,34 +64,58 @@ export default function AuthPage() {
   // URLからエラーパラメータを確認
   useEffect(() => {
     const errorParam = searchParams.get('error');
+    const messageParam = searchParams.get('message');
+    
     if (errorParam) {
-      switch (errorParam) {
-        case 'no_code':
-          setError('認証コードが取得できませんでした');
-          break;
-        case 'token_error':
-          setError('認証トークンの取得に失敗しました');
-          break;
-        case 'no_id_token':
-          setError('IDトークンが取得できませんでした');
-          break;
-        case 'supabase_auth_error':
-          setError('アカウント作成に失敗しました');
-          break;
-        case 'no_supabase_user':
-          setError('ユーザー情報の作成に失敗しました');
-          break;
-        case 'line_auth_start_error':
-          setError('LINE認証の開始に失敗しました');
-          break;
-        case 'unexpected_error':
-          setError('予期しないエラーが発生しました');
-          break;
-        default:
-          setError('認証エラーが発生しました');
+      // カスタムメッセージがある場合はそれを使用（デバッグ時のみ）
+      if (messageParam) {
+        try {
+          const decodedMessage = decodeURIComponent(messageParam);
+          setError(decodedMessage);
+        } catch (decodeError) {
+          console.error('URLメッセージのデコードエラー:', decodeError);
+          // デフォルトメッセージにフォールバック
+          setError(getDefaultErrorMessage(errorParam));
+        }
+        return;
       }
+      
+      // エラーコードに基づくデフォルトメッセージ
+      setError(getDefaultErrorMessage(errorParam));
     }
   }, [searchParams]);
+
+  // エラーコードからデフォルトメッセージを取得
+  function getDefaultErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+      case 'password_update_error':
+        return 'ログイン処理に失敗しました。時間をおいて再度お試しください。';
+      case 'line_access_denied':
+        return 'LINE認証がキャンセルされました。再度お試しください。';
+      case 'line_error':
+        return 'LINE認証でエラーが発生しました。再度お試しください。';
+      case 'no_code':
+        return '認証コードが取得できませんでした。再度お試しください。';
+      case 'token_error':
+        return '認証トークンの取得に失敗しました。時間をおいて再度お試しください。';
+      case 'no_id_token':
+        return 'LINEユーザー情報の取得に失敗しました。';
+      case 'supabase_auth_error':
+        return 'アカウント作成に失敗しました。';
+      case 'no_supabase_user':
+        return 'ユーザー情報の作成に失敗しました。';
+      case 'existing_user_not_found':
+        return '既存のアカウントが見つかりませんでした。';
+      case 'profile_save_error':
+        return 'プロフィールの保存に失敗しました。';
+      case 'line_auth_start_error':
+        return 'LINE認証の開始に失敗しました。';
+      case 'unexpected_error':
+        return '予期しないエラーが発生しました。時間をおいて再度お試しください。';
+      default:
+        return '認証エラーが発生しました。';
+    }
+  }
 
   async function handleAuth() {
     try {
@@ -127,18 +151,31 @@ export default function AuthPage() {
         if (error) throw error;
         
         if (data?.user) {
-          // プロフィール情報を保存
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
+          // プロフィール情報を保存（API経由）
+          try {
+            const profileResponse = await fetch('/api/auth/create-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: data.user.id,
                 email: email,
                 name: name
-              }
-            ]);
-          
-          if (profileError) throw profileError;
+              }),
+            });
+
+            if (!profileResponse.ok) {
+              const profileError = await profileResponse.json();
+              throw new Error(profileError.error || 'プロフィールの作成に失敗しました');
+            }
+
+            console.log('プロフィール作成成功');
+            
+          } catch (profileErr: any) {
+            console.error('プロフィール作成エラー:', profileErr);
+            throw new Error(profileErr.message || 'プロフィールの作成に失敗しました');
+          }
           
           alert('確認メールを送信しました。メールを確認してください。');
         }

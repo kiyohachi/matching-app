@@ -2,80 +2,130 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function LineEmailPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+  const [lineUserInfo, setLineUserInfo] = useState<{
+    lineUserId: string;
+    displayName: string;
+    pictureUrl: string;
+  } | null>(null);
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // URLパラメータからLINE情報を取得
-  const lineUserId = searchParams.get('line_user_id');
-  const displayName = searchParams.get('display_name');
-  const pictureUrl = searchParams.get('picture_url');
 
   useEffect(() => {
-    // LINE情報が不足している場合は認証画面にリダイレクト
+    // URLパラメータからLINEユーザー情報を取得
+    const lineUserId = searchParams.get('line_user_id');
+    const displayName = searchParams.get('display_name');
+    const pictureUrl = searchParams.get('picture_url');
+
     if (!lineUserId || !displayName) {
-      router.push('/auth?error=missing_line_info');
+      // LINEユーザー情報がない場合は認証ページにリダイレクト
+      router.push('/auth');
+      return;
     }
-  }, [lineUserId, displayName, router]);
 
-  async function handleEmailSubmit() {
+    setLineUserInfo({
+      lineUserId,
+      displayName: (() => {
+        try {
+          return decodeURIComponent(displayName);
+        } catch (decodeError) {
+          console.error('displayNameのデコードエラー:', decodeError);
+          return displayName || 'LINEユーザー';
+        }
+      })(),
+      pictureUrl: (() => {
+        try {
+          return decodeURIComponent(pictureUrl || '');
+        } catch (decodeError) {
+          console.error('pictureUrlのデコードエラー:', decodeError);
+          return pictureUrl || '';
+        }
+      })(),
+    });
+  }, [searchParams, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (!email) {
+      setError('メールアドレスを入力してください');
+      return;
+    }
+
+    if (!lineUserInfo) {
+      setError('LINEユーザー情報が取得できませんでした');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      setError('');
+      console.log('アカウント作成開始...');
       
-      if (!email || !email.includes('@')) {
-        setError('有効なメールアドレスを入力してください');
-        return;
-      }
-
-      console.log('LINEアカウント作成処理開始:', {
-        lineUserId,
-        displayName,
-        email
-      });
-
-      // LINEアカウント作成APIを呼び出し
+      // アカウント作成APIを呼び出し
       const response = await fetch('/api/auth/line/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineUserId,
-          displayName,
-          pictureUrl,
-          email,
+          email: email,
+          lineUserId: lineUserInfo.lineUserId,
+          displayName: lineUserInfo.displayName,
+          pictureUrl: lineUserInfo.pictureUrl,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'アカウント作成に失敗しました');
+        throw new Error(data.error || 'アカウント作成に失敗しました');
       }
 
-      const result = await response.json();
-      console.log('LINEアカウント作成成功:', result);
+      console.log('アカウント作成成功:', data);
 
-      // ダッシュボードにリダイレクト
-      router.push(`/dashboard?line_login=success&user_id=${result.userId}&display_name=${encodeURIComponent(displayName!)}`);
-      
+      // 自動ログイン処理
+      if (data.tempPassword) {
+        console.log('自動ログイン開始...');
+        
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: data.tempPassword,
+        });
+
+        if (signInError) {
+          console.error('自動ログインエラー:', signInError);
+          throw new Error('アカウントは作成されましたが、ログインに失敗しました');
+        }
+
+        console.log('自動ログイン成功');
+      }
+
+      // 成功時はダッシュボードにリダイレクト
+      router.push('/dashboard');
+
     } catch (error: any) {
-      console.error('LINEアカウント作成エラー:', error);
-      setError(error.message || 'アカウント作成中にエラーが発生しました');
+      console.error('処理エラー:', error);
+      setError(error.message || 'エラーが発生しました');
     } finally {
       setLoading(false);
     }
   }
 
-  if (!lineUserId || !displayName) {
+  if (!lineUserInfo) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>LINE情報を読み込み中...</p>
+      <div className="container mx-auto px-4 py-12 max-w-md">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
+        </div>
       </div>
     );
   }
@@ -83,76 +133,83 @@ export default function LineEmailPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-md">
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 bg-[#06C755] rounded-full flex items-center justify-center">
-            {pictureUrl ? (
-              <img 
-                src={pictureUrl} 
-                alt={displayName!} 
-                className="w-full h-full rounded-full object-cover"
+        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
+          メールアドレス入力
+        </h1>
+        
+        {/* LINEユーザー情報表示 */}
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+          <div className="flex items-center gap-3">
+            {lineUserInfo.pictureUrl && (
+              <img
+                src={lineUserInfo.pictureUrl}
+                alt="プロフィール画像"
+                className="w-12 h-12 rounded-full"
               />
-            ) : (
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-              </svg>
             )}
+            <div>
+              <p className="font-medium text-green-800">
+                {lineUserInfo.displayName}
+              </p>
+              <p className="text-sm text-green-600">
+                LINEログイン完了
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            こんにちは、{decodeURIComponent(displayName!)}さん！
-          </h1>
-          <p className="text-gray-600">
-            LINEログインが完了しました。<br />
-            最後に、マッチング通知用のメールアドレスを入力してください。
+        </div>
+
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-blue-800 text-sm">
+            マッチング通知を受け取るためのメールアドレスを入力してください。
           </p>
         </div>
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-300 text-red-700 rounded-md">
             {error}
           </div>
         )}
-        
-        <div className="space-y-6">
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-gray-700 mb-2 font-medium">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               メールアドレス
             </label>
             <input
               type="email"
+              id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="example@email.com"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="example@example.com"
+              required
               disabled={loading}
             />
-            <p className="text-sm text-gray-500 mt-2">
-              このメールアドレスはマッチング通知の送信に使用されます
-            </p>
           </div>
-          
+
           <button
-            onClick={handleEmailSubmit}
-            disabled={loading || !email}
-            className="w-full bg-[#06C755] text-white py-3 px-4 rounded-md hover:bg-[#05B84F] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 <span>アカウント作成中...</span>
               </div>
             ) : (
               'アカウントを作成'
             )}
           </button>
-          
-          <div className="text-center">
-            <a
-              href="/auth"
-              className="text-blue-500 hover:underline transition-colors duration-200 text-sm"
-            >
-              最初からやり直す
-            </a>
-          </div>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => router.push('/auth')}
+            className="text-gray-600 hover:text-gray-800 text-sm"
+          >
+            ← 認証ページに戻る
+          </button>
         </div>
       </div>
     </div>

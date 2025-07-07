@@ -7,16 +7,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// 強力な一時パスワードを生成する関数
+function generateTempPassword(): string {
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*()_+-=[]{}';
+  
+  // 各カテゴリから最低1文字ずつ選択
+  let password = '';
+  password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  password += uppercase[Math.floor(Math.random() * uppercase.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += special[Math.floor(Math.random() * special.length)];
+  
+  // 残りの文字をランダムに選択（合計16文字）
+  const allChars = lowercase + uppercase + numbers + special;
+  for (let i = 0; i < 12; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)];
+  }
+  
+  // 文字をシャッフル
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { lineUserId, displayName, pictureUrl, email } = body;
+    const { email, lineUserId, displayName, pictureUrl } = await request.json();
 
-    console.log('=== LINEアカウント作成API開始 ===');
-    console.log('リクエストデータ:', { lineUserId, displayName, email });
-
-    // 入力データの検証
-    if (!lineUserId || !displayName || !email) {
+    // 入力値検証
+    if (!email || !lineUserId || !displayName) {
       return NextResponse.json(
         { error: '必要な情報が不足しています' },
         { status: 400 }
@@ -30,24 +50,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 既存のLINEユーザーIDチェック
-    const { data: existingProfile } = await supabase
+    console.log('=== LINEアカウント作成処理開始 ===');
+    console.log('Email:', email);
+    console.log('LINE User ID:', lineUserId);
+    console.log('Display Name:', displayName);
+
+    // 既存のLINEユーザーをチェック
+    const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('id')
       .eq('line_user_id', lineUserId)
       .single();
 
     if (existingProfile) {
-      console.log('既存のLINEユーザーIDが検出されました:', lineUserId);
       return NextResponse.json(
         { error: 'このLINEアカウントは既に登録済みです' },
         { status: 409 }
       );
     }
 
-    // Supabase Authでユーザーを作成
+    // 一時パスワードを生成
+    const tempPassword = generateTempPassword();
+    console.log('一時パスワード生成完了');
+
+    // Supabaseでユーザーを作成（パスワード付き）
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email,
+      password: tempPassword,
       email_confirm: true,
       app_metadata: {
         provider: 'line',
@@ -62,89 +91,75 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      console.error('Supabase認証エラー:', authError);
+      console.error('Supabaseユーザー作成エラー:', authError);
       
       if (authError.message.includes('already been registered') || authError.code === 'email_exists') {
-        // メールアドレス重複の場合、既存ユーザーを検索してLINE情報を追加
-        console.log('既存メールアドレス検出、LINE情報を追加');
-        
-        const { data: existingUsers } = await supabase.auth.admin.listUsers();
-        const existingUser = existingUsers.users.find(user => user.email === email);
-        
-        if (existingUser) {
-          // 既存ユーザーにLINE情報を追加
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              line_user_id: lineUserId,
-              line_display_name: displayName,
-              name: displayName, // 表示名も更新
-            })
-            .eq('id', existingUser.id);
-
-          if (updateError) {
-            console.error('プロフィール更新エラー:', updateError);
-            return NextResponse.json(
-              { error: 'プロフィールの更新に失敗しました' },
-              { status: 500 }
-            );
-          }
-
-          console.log('既存ユーザーにLINE情報を追加完了:', existingUser.id);
-          return NextResponse.json({
-            success: true,
-            userId: existingUser.id,
-            message: '既存アカウントにLINE情報を追加しました'
-          });
-        }
+        return NextResponse.json(
+          { error: 'このメールアドレスは既に使用されています' },
+          { status: 409 }
+        );
       }
-      
+
       return NextResponse.json(
-        { error: 'アカウント作成に失敗しました' },
+        { error: `アカウントの作成に失敗しました: ${authError.message}` },
         { status: 500 }
       );
     }
 
     if (!authData?.user?.id) {
-      console.error('ユーザーIDが取得できませんでした');
       return NextResponse.json(
         { error: 'ユーザーIDの取得に失敗しました' },
         { status: 500 }
       );
     }
 
-    // プロフィールテーブルに情報を保存
+    const userId = authData.user.id;
+    console.log('Supabaseユーザー作成成功:', userId);
+
+    // プロフィールテーブルにユーザー情報を保存
+    const profileData = {
+      id: userId,
+      name: displayName,
+      email: email,
+      line_user_id: lineUserId,
+      line_display_name: displayName,
+    };
+
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: email,
-        name: displayName,
-        line_user_id: lineUserId,
-        line_display_name: displayName,
-      });
+      .insert(profileData);
 
     if (profileError) {
-      console.error('プロフィール作成エラー:', profileError);
-      // ユーザーは作成されているので、削除してエラーを返す
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      console.error('プロフィール保存エラー:', profileError);
       
+      // プロフィール保存に失敗した場合でも、認証ユーザーは作成されているのでロールバック
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch (deleteError) {
+        console.error('ユーザー削除エラー:', deleteError);
+      }
+
       return NextResponse.json(
-        { error: 'プロフィールの作成に失敗しました' },
+        { error: 'プロフィールの保存に失敗しました' },
         { status: 500 }
       );
     }
 
-    console.log('LINEアカウント作成完了:', authData.user.id);
-    
+    console.log('プロフィール保存成功');
+    console.log('=== LINEアカウント作成完了 ===');
+
+    // 一時パスワードをクライアントに返す（自動ログイン用）
     return NextResponse.json({
       success: true,
-      userId: authData.user.id,
-      message: 'アカウントが正常に作成されました'
+      message: 'アカウントが正常に作成されました',
+      userId: userId,
+      displayName: displayName,
+      email: email,
+      tempPassword: tempPassword,
     });
 
   } catch (error) {
-    console.error('LINEアカウント作成API エラー:', error);
+    console.error('LINEアカウント作成処理エラー:', error);
     return NextResponse.json(
       { error: '予期しないエラーが発生しました' },
       { status: 500 }
