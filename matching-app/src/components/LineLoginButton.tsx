@@ -5,9 +5,10 @@ import { useState } from 'react';
 interface LineLoginButtonProps {
   className?: string;
   disabled?: boolean;
+  inviteCode?: string | null;
 }
 
-export default function LineLoginButton({ className = '', disabled = false }: LineLoginButtonProps) {
+export default function LineLoginButton({ className = '', disabled = false, inviteCode }: LineLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLineLogin = () => {
@@ -17,7 +18,9 @@ export default function LineLoginButton({ className = '', disabled = false }: Li
     console.log('LINEログイン開始');
     
     // LINE認証APIエンドポイントにリダイレクト
-    window.location.href = '/api/auth/line';
+    // inviteCodeがある場合はクエリパラメータとして渡す
+    const url = inviteCode ? `/api/auth/line?inviteCode=${inviteCode}` : '/api/auth/line';
+    window.location.href = url;
   };
 
   return (

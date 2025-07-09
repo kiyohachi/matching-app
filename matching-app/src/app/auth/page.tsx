@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import LineLoginButton from '@/components/LineLoginButton';
 import { parseLineLoginParams, handleLineLoginCallback } from '@/lib/lineAuth';
 
-export default function AuthPage() {
+function AuthPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -198,94 +198,104 @@ export default function AuthPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-md">
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
+        <h1 className="text-2xl font-bold mb-6 text-center">
           {isLogin ? 'ログイン' : '新規登録'}
         </h1>
         
-        {inviteCode && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md text-center">
-            <p className="text-blue-800">招待リンクから{isLogin ? 'ログイン' : '登録'}します</p>
-          </div>
-        )}
-        
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-300 text-red-700 rounded-md">
+          <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
             {error}
           </div>
         )}
+
+        <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }}>
+          {!isLogin && (
+            <div className="mb-4">
+              <label htmlFor="name" className="block text-sm font-medium mb-2">
+                名前
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                required
+              />
+            </div>
+          )}
+          
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium mb-2">
+              メールアドレス
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            />
+          </div>
+          
+          <div className="mb-6">
+            <label htmlFor="password" className="block text-sm font-medium mb-2">
+              パスワード
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            />
+          </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:opacity-50 mb-4"
+          >
+            {loading ? '処理中...' : (isLogin ? 'ログイン' : '新規登録')}
+          </button>
+        </form>
         
-        <div className="space-y-6">
-          {/* LINEログインボタン */}
-          <div>
-            <LineLoginButton disabled={loading} />
-          </div>
-          
-          {/* 区切り線 */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">または</span>
-            </div>
-          </div>
-          
-          {/* メール認証フォーム */}
-          <div className="space-y-4">
-            {!isLogin && (
-              <div>
-                <label className="block text-gray-700 mb-2 font-medium">名前</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="あなたの名前"
-                />
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-gray-700 mb-2 font-medium">メールアドレス</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="example@email.com"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 mb-2 font-medium">パスワード</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="パスワード"
-              />
-            </div>
-            
-            <button
-              onClick={handleAuth}
-              disabled={loading}
-              className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:bg-blue-300 transition-colors duration-200 font-medium"
-            >
-              {loading ? '処理中...' : isLogin ? 'メールでログイン' : 'メールで登録'}
-            </button>
-          </div>
-          
-          <div className="text-center">
-            <a
-              href={`/auth?mode=${isLogin ? 'signup' : 'login'}${inviteCode ? `&invite=${inviteCode}` : ''}`}
-              className="text-blue-500 hover:underline transition-colors duration-200"
-            >
-              {isLogin ? '新規登録はこちら' : 'ログインはこちら'}
-            </a>
-          </div>
+        <div className="text-center mb-4">
+          <p className="text-gray-600">または</p>
+        </div>
+        
+        <LineLoginButton inviteCode={inviteCode} />
+        
+        <div className="text-center mt-4">
+          <button
+            onClick={() => {
+              const newMode = isLogin ? 'register' : 'login';
+              const url = new URL(window.location.href);
+              url.searchParams.set('mode', newMode);
+              window.location.href = url.toString();
+            }}
+            className="text-blue-500 hover:underline"
+          >
+            {isLogin ? '新規登録はこちら' : 'ログインはこちら'}
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 max-w-md">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <div className="text-center">読み込み中...</div>
+        </div>
+      </div>
+    }>
+      <AuthPageContent />
+    </Suspense>
   );
 }
