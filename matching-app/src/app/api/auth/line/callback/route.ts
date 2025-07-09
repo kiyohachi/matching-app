@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Step 2: IDトークンをデコードしてユーザー情報を取得
     const idToken = tokenData.id_token;
-    const decodedPayload = JSON.parse(atob(idToken.split('.')[1]));
+    const decodedPayload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString('utf8'));
     
     const lineUserInfo = {
       lineUserId: decodedPayload.sub,
