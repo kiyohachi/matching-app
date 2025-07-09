@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: redirectUri,
-        client_id: process.env.LINE_CLIENT_ID!,
-        client_secret: process.env.LINE_CLIENT_SECRET!,
+        client_id: process.env.LINE_CHANNEL_ID!,
+        client_secret: process.env.LINE_CHANNEL_SECRET!,
       }),
     });
 
