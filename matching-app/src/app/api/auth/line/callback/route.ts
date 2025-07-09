@@ -36,34 +36,30 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
-  const error_description = searchParams.get('error_description');
+  const inviteCode = searchParams.get('state')?.split('_')[1]; // inviteCodeがある場合は state に含まれる
+
+  console.log('=== LINEログインコールバック処理開始 ===');
+  console.log('認可コード:', code);
+  console.log('State:', state);
   
-  // LINEからのエラーレスポンスをチェック
+  // 環境変数からベースURLを取得
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
   if (error) {
-    console.error('LINE認証エラー:', error, error_description);
-    
-    // 2段階認証キャンセルなどの場合
-    if (error === 'access_denied') {
-      return NextResponse.redirect(new URL('/auth?error=line_access_denied', request.url));
-    }
-    
-    return NextResponse.redirect(new URL('/auth?error=line_error', request.url));
+    console.error('LINE認証エラー:', error);
+    return NextResponse.redirect(new URL('/auth?error=line_auth_error', baseUrl));
   }
-  
+
   if (!code) {
-    console.error('認可コードが取得できませんでした');
-    return NextResponse.redirect(new URL('/auth?error=no_code', request.url));
+    console.error('認可コードが見つかりません');
+    return NextResponse.redirect(new URL('/auth?error=no_code', baseUrl));
   }
 
   try {
-    console.log('=== LINEログインコールバック処理開始 ===');
-    console.log('認可コード:', code);
-    console.log('State:', state);
-
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/line/callback`;
+    // Step 1: 認可コードでアクセストークンを取得
+    const redirectUri = `${baseUrl}/api/auth/line/callback`;
     console.log('使用するredirect_uri (callback):', redirectUri);
-
-    // Step 1: アクセストークンとIDトークンを取得
+    
     const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',
       headers: {
@@ -73,30 +69,22 @@ export async function GET(request: NextRequest) {
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: redirectUri,
-        client_id: process.env.LINE_CHANNEL_ID!,
-        client_secret: process.env.LINE_CHANNEL_SECRET!,
+        client_id: process.env.LINE_CLIENT_ID!,
+        client_secret: process.env.LINE_CLIENT_SECRET!,
       }),
     });
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      console.error('LINEトークン取得エラー:', errorData);
-      return NextResponse.redirect(new URL('/auth?error=token_error', request.url));
+      console.error('LINEトークン取得エラー:', tokenResponse.status);
+      return NextResponse.redirect(new URL('/auth?error=token_error', baseUrl));
     }
 
     const tokenData = await tokenResponse.json();
     console.log('LINEトークン取得成功');
-    
-    // Step 2: IDトークンからユーザー情報を抽出
-    const idToken = tokenData.id_token;
-    if (!idToken) {
-      console.error('IDトークンが取得できませんでした');
-      return NextResponse.redirect(new URL('/auth?error=no_id_token', request.url));
-    }
 
-    // IDトークンをデコード（簡易版 - 本番環境では検証も必要）
-    const base64Payload = idToken.split('.')[1];
-    const decodedPayload = JSON.parse(Buffer.from(base64Payload, 'base64').toString());
+    // Step 2: IDトークンをデコードしてユーザー情報を取得
+    const idToken = tokenData.id_token;
+    const decodedPayload = JSON.parse(atob(idToken.split('.')[1]));
     
     const lineUserInfo = {
       lineUserId: decodedPayload.sub,
@@ -138,14 +126,14 @@ export async function GET(request: NextRequest) {
             code: updateError.code,
             status: updateError.status
           });
-          return NextResponse.redirect(new URL('/auth?error=password_update_error', request.url));
+          return NextResponse.redirect(new URL('/auth?error=password_update_error', baseUrl));
         }
 
         console.log('既存ユーザーのパスワード更新成功');
         
       } catch (updateErr) {
         console.error('既存ユーザーパスワード更新処理エラー:', updateErr);
-        return NextResponse.redirect(new URL('/auth?error=password_update_error', request.url));
+        return NextResponse.redirect(new URL('/auth?error=password_update_error', baseUrl));
       }
       
       // emailがnullの場合のフォールバック
@@ -176,7 +164,7 @@ export async function GET(request: NextRequest) {
       }
 
       // セッション情報を含むリダイレクト（強力な一時パスワード付き）
-      const redirectUrl = new URL('/dashboard', request.url);
+      const redirectUrl = new URL('/dashboard', baseUrl);
       redirectUrl.searchParams.set('line_login', 'success');
       redirectUrl.searchParams.set('user_id', existingProfile.id);
       redirectUrl.searchParams.set('email', userEmail);
@@ -195,7 +183,7 @@ export async function GET(request: NextRequest) {
         console.log('LINEからメールアドレスが取得できません。メール入力ページにリダイレクト');
         
         // 一時的にLINEユーザー情報をセッションに保存
-        const redirectUrl = new URL('/auth/line-email', request.url);
+        const redirectUrl = new URL('/auth/line-email', baseUrl);
         redirectUrl.searchParams.set('line_user_id', lineUserInfo.lineUserId);
         redirectUrl.searchParams.set('display_name', encodeURIComponent(lineUserInfo.displayName));
         redirectUrl.searchParams.set('picture_url', encodeURIComponent(lineUserInfo.pictureUrl || ''));
@@ -244,7 +232,7 @@ export async function GET(request: NextRequest) {
 
             if (updateError) {
               console.error('既存ユーザーのパスワード更新エラー:', updateError);
-              return NextResponse.redirect(new URL('/auth?error=password_update_error', request.url));
+              return NextResponse.redirect(new URL('/auth?error=password_update_error', baseUrl));
             }
 
             // プロフィールにLINE情報を追加
@@ -258,7 +246,7 @@ export async function GET(request: NextRequest) {
               .eq('id', existingUser.id);
 
             // セッション情報を含むリダイレクト
-            const redirectUrl = new URL('/dashboard', request.url);
+            const redirectUrl = new URL('/dashboard', baseUrl);
             redirectUrl.searchParams.set('line_login', 'success');
             redirectUrl.searchParams.set('user_id', existingUser.id);
             redirectUrl.searchParams.set('email', existingUser.email!);
@@ -268,16 +256,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(redirectUrl);
           } else {
             console.error('既存ユーザーが見つかりませんでした');
-            return NextResponse.redirect(new URL('/auth?error=existing_user_not_found', request.url));
+            return NextResponse.redirect(new URL('/auth?error=existing_user_not_found', baseUrl));
           }
         } else {
           console.error('Supabase認証エラー:', authError);
-          return NextResponse.redirect(new URL('/auth?error=supabase_auth_error', request.url));
+          return NextResponse.redirect(new URL('/auth?error=supabase_auth_error', baseUrl));
         }
       } else {
         if (!authData?.user?.id) {
           console.error('SupabaseユーザーIDが取得できませんでした');
-          return NextResponse.redirect(new URL('/auth?error=no_supabase_user', request.url));
+          return NextResponse.redirect(new URL('/auth?error=no_supabase_user', baseUrl));
         }
         
         const userId = authData.user.id;
@@ -300,14 +288,14 @@ export async function GET(request: NextRequest) {
           console.error('プロフィール保存エラー:', profileError);
           // カラムが見つからない場合でもログインは続行
           if (!profileError.message.includes('Could not find')) {
-            return NextResponse.redirect(new URL('/auth?error=profile_save_error', request.url));
+            return NextResponse.redirect(new URL('/auth?error=profile_save_error', baseUrl));
           }
         }
 
         console.log('LINEログイン完了 - ユーザーID:', userId);
 
         // セッション情報を含むリダイレクト
-        const redirectUrl = new URL('/dashboard', request.url);
+        const redirectUrl = new URL('/dashboard', baseUrl);
         redirectUrl.searchParams.set('line_login', 'success');
         redirectUrl.searchParams.set('user_id', userId);
         redirectUrl.searchParams.set('email', lineUserInfo.email);
@@ -320,6 +308,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('LINEログイン処理エラー:', error);
-    return NextResponse.redirect(new URL('/auth?error=unexpected_error', request.url));
+    return NextResponse.redirect(new URL('/auth?error=unexpected_error', baseUrl));
   }
 } 
