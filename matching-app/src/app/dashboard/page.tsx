@@ -218,12 +218,20 @@ function DashboardContent() {
               </div>
               <h1 className="text-2xl font-bold text-white">Reunion</h1>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
-            >
-              ログアウト
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/admin/test')}
+                className="bg-yellow-500/20 backdrop-blur-sm text-yellow-300 border border-yellow-500/30 px-4 py-2 rounded-lg hover:bg-yellow-500/30 transition-all duration-300 text-sm"
+              >
+                🧪 テスト
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
+              >
+                ログアウト
+              </button>
+            </div>
           </div>
         </div>
       </header>
