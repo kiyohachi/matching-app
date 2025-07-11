@@ -101,46 +101,102 @@ export default function InvitePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>読み込み中...</p>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-xl">R</span>
+          </div>
+          <p className="text-lg font-medium">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-md">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">グループへの招待</h1>
-        
-        {error ? (
-          <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
-            {error}
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* ヘッダー */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-xl">R</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white">Reunion</h1>
           </div>
-        ) : (
-          <>
-            <p className="mb-6 text-center">
-              <span className="font-semibold">{inviteData?.name || 'グループ'}</span> に招待されました。
-              登録またはログインして参加しましょう。
-            </p>
-            
-            <div className="space-y-4">
+          <div className="text-6xl mb-6">🎉</div>
+          <h2 className="text-2xl font-bold mb-2">
+            グループへの招待
+          </h2>
+          <p className="text-gray-300">
+            懐かしい仲間との再会が待っています
+          </p>
+        </div>
+
+        {/* メインコンテンツ */}
+        <div className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
+          {error ? (
+            <div className="text-center">
+              <div className="text-6xl mb-4">❌</div>
+              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <p className="text-red-300 text-sm">{error}</p>
+              </div>
               <button
-                onClick={handleSignUp}
-                className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                onClick={() => router.push('/')}
+                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
               >
-                新規登録して参加
-              </button>
-              
-              <button
-                onClick={handleLogin}
-                className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300"
-              >
-                ログインして参加
+                ホームに戻る
               </button>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <div className="text-5xl mb-4">🎓</div>
+                <h3 className="text-xl font-bold mb-4 text-white">
+                  {inviteData?.group_name || 'グループ'}
+                </h3>
+                <p className="text-gray-300 leading-relaxed">
+                  <span className="font-semibold text-orange-300">{inviteData?.group_name || 'グループ'}</span> に招待されました！<br />
+                  登録またはログインして<br />
+                  懐かしい仲間との再会を楽しみましょう
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <button
+                  onClick={handleSignUp}
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  新規登録して参加
+                </button>
+                
+                <button
+                  onClick={handleLogin}
+                  className="w-full bg-white/10 backdrop-blur-sm text-white border border-white/20 py-4 px-6 rounded-lg font-semibold hover:bg-white/20 transition-all duration-300"
+                >
+                  ログインして参加
+                </button>
+              </div>
+              
+              <div className="mt-8 text-center">
+                <p className="text-gray-400 text-sm">
+                  まだアカウントをお持ちでない方は新規登録を、<br />
+                  既にアカウントをお持ちの方はログインを選択してください
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+        
+        {/* フッター */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => router.push('/')}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            ← ホームに戻る
+          </button>
+        </div>
       </div>
     </div>
   );
-} 
+}

@@ -196,89 +196,118 @@ function AuthPageContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-md">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          {isLogin ? 'ログイン' : '新規登録'}
-        </h1>
-        
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
-            {error}
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* ヘッダー */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-xl">R</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white">Reunion</h1>
           </div>
-        )}
+          <h2 className="text-2xl font-bold mb-2">
+            {isLogin ? 'ログイン' : '新規登録'}
+          </h2>
+          <p className="text-gray-300">
+            {isLogin ? '既存のアカウントでログイン' : '新しいアカウントを作成'}
+          </p>
+        </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }}>
-          {!isLogin && (
-            <div className="mb-4">
-              <label htmlFor="name" className="block text-sm font-medium mb-2">
-                名前
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
-              />
+        {/* メインフォーム */}
+        <div className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <p className="text-red-300 text-sm">{error}</p>
             </div>
           )}
           
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium mb-2">
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              required
-            />
+          <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }} className="space-y-6">
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  お名前
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="山田太郎"
+                  required={!isLogin}
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                メールアドレス
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="example@email.com"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                パスワード
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="パスワード（6文字以上）"
+                required
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              {loading ? '処理中...' : (isLogin ? 'ログイン' : '新規登録')}
+            </button>
+          </form>
+          
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white/10 text-gray-300">または</span>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <LineLoginButton inviteCode={inviteCode} />
+            </div>
           </div>
           
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-sm font-medium mb-2">
-              パスワード
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              required
-            />
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => router.push(`/auth${inviteCode ? `?invite=${inviteCode}` : ''}${isLogin ? '?mode=signup' : ''}${inviteCode && !isLogin ? '&mode=login' : ''}`)}
+              className="text-orange-300 hover:text-orange-200 transition-colors font-medium"
+            >
+              {isLogin ? 'アカウントをお持ちでない方' : '既にアカウントをお持ちの方'}
+            </button>
           </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:opacity-50 mb-4"
-          >
-            {loading ? '処理中...' : (isLogin ? 'ログイン' : '新規登録')}
-          </button>
-        </form>
-        
-        <div className="text-center mb-4">
-          <p className="text-gray-600">または</p>
         </div>
         
-        <LineLoginButton inviteCode={inviteCode} />
-        
-        <div className="text-center mt-4">
+        {/* フッター */}
+        <div className="mt-8 text-center">
           <button
-            onClick={() => {
-              const newMode = isLogin ? 'register' : 'login';
-              const url = new URL(window.location.href);
-              url.searchParams.set('mode', newMode);
-              window.location.href = url.toString();
-            }}
-            className="text-blue-500 hover:underline"
+            onClick={() => router.push('/')}
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            {isLogin ? '新規登録はこちら' : 'ログインはこちら'}
+            ← ホームに戻る
           </button>
         </div>
       </div>
@@ -289,9 +318,12 @@ function AuthPageContent() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="container mx-auto px-4 py-12 max-w-md">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <div className="text-center">読み込み中...</div>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-xl">R</span>
+          </div>
+          <p className="text-lg font-medium">読み込み中...</p>
         </div>
       </div>
     }>

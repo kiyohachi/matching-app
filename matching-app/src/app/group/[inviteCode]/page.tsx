@@ -242,180 +242,268 @@ export default function GroupPage() {
     setShowPaymentModal(true);
   }
 
+  // ログアウト処理
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>読み込み中...</p>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-xl">R</span>
+          </div>
+          <p className="text-lg font-medium">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-6">❌</div>
+          <h2 className="text-2xl font-bold mb-4">エラーが発生しました</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
+          >
+            ダッシュボードに戻る
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
-      <h1 className="text-2xl font-bold mb-2 text-center">
-        {inviteData?.name || 'グループ'}
-      </h1>
-      <p className="text-center text-gray-600 mb-8">
-        会いたい人を登録して、マッチングを待ちましょう
-      </p>
-      
-      {/* 【新機能】いいね制限状況表示 */}
-      {likeStatus && (
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+    <div className="min-h-screen bg-black text-white">
+      {/* ヘッダー */}
+      <header className="bg-black/80 backdrop-blur-sm border-b border-white/10 sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <p className="font-semibold text-blue-800">
-                {likeStatus.plan.isPremium ? '✨ プレミアムプラン' : '🆓 無料プラン'}
-              </p>
-              <p className="text-sm text-blue-600">
-                {likeStatus.plan.isPremium ? 
-                  '無制限いいね' : 
-                  `残りいいね数: ${likeStatus.usage.remainingLikes}/${likeStatus.usage.totalAvailable}`
-                }
-              </p>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">R</span>
+              </div>
+              <h1 className="text-2xl font-bold text-white">Reunion</h1>
             </div>
-            {!likeStatus.plan.isPremium && (
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
+              >
+                ダッシュボード
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
+              >
+                ログアウト
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-6 py-8">
+        {/* グループ情報 */}
+        <div className="mb-8">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-4">🎓</div>
+            <h2 className="text-3xl font-bold mb-2">{inviteData?.group_name}</h2>
+            <p className="text-gray-300">懐かしい仲間との再会を楽しもう</p>
+          </div>
+        </div>
+
+        {/* いいね制限状況 */}
+        {likeStatus && (
+          <div className="mb-8 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">いいね制限状況</h3>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                likeStatus.plan.isPremium 
+                  ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' 
+                  : 'bg-white/10 text-gray-300 border border-white/20'
+              }`}>
+                {likeStatus.plan.isPremium ? 'プレミアム' : 'フリープラン'}
+              </span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-gray-300">
+                残りいいね数: <span className="text-white font-semibold">{likeStatus.usage.remainingLikes}</span>
+                {likeStatus.usage.totalAvailable && (
+                  <span className="text-gray-400"> / {likeStatus.usage.totalAvailable}</span>
+                )}
+              </p>
+              {!likeStatus.limit.allowed && (
+                <p className="text-red-300 text-sm">{likeStatus.limit.message}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 会いたい人を登録 */}
+        <div className="mb-8 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+          <h3 className="text-xl font-bold mb-4 text-white">会いたい人を登録</h3>
+          <p className="text-gray-300 mb-6">
+            会いたい人の名前を入力してください。お互いに登録するまで相手には分かりません。
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              value={targetName}
+              onChange={(e) => setTargetName(e.target.value)}
+              placeholder="会いたい人の名前を入力"
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+            <button
+              onClick={handleAddTarget}
+              disabled={isLimitReached}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                isLimitReached
+                  ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+              }`}
+            >
+              登録
+            </button>
+          </div>
+          
+          {isLimitReached && (
+            <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <p className="text-red-300 text-sm">
+                今月のいいね制限に達しました。プレミアムプランで無制限いいねを楽しもう！
+              </p>
               <button
                 onClick={handlePaymentOptions}
-                className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                className="mt-3 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
               >
-                アップグレード
+                プレミアムにアップグレード
               </button>
-            )}
-          </div>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="mt-4 p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
+              <p className="text-green-300 text-sm">{successMessage}</p>
+            </div>
+          )}
         </div>
-      )}
-      
-      {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
-          {error}
-        </div>
-      )}
-      
-      {successMessage && (
-        <div className="bg-green-100 text-green-700 p-4 rounded-md mb-6">
-          {successMessage}
-        </div>
-      )}
-      
-      {/* 会いたい人登録フォーム */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4">会いたい人を登録</h2>
-        <div className="flex mb-4">
-          <input
-            type="text"
-            value={targetName}
-            onChange={(e) => setTargetName(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
-            placeholder="会いたい人の名前"
-            disabled={isLimitReached}
-          />
-          <button
-            onClick={isLimitReached ? handlePaymentOptions : handleAddTarget}
-            className={`px-4 py-2 rounded-r-md ${
-              isLimitReached 
-                ? 'bg-orange-500 text-white hover:bg-orange-600' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-          >
-            {isLimitReached ? '課金' : '追加'}
-          </button>
-        </div>
-        
-        {/* 【新機能】制限メッセージ */}
-        {isLimitReached && (
-          <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md mb-4">
-            <p className="text-sm text-yellow-700">
-              ⚠️ 今月のいいね制限に達しました
-            </p>
-            <p className="text-xs text-yellow-600 mt-1">
-              プレミアムプランで無制限いいね、または追加いいねを購入できます
-            </p>
-          </div>
-        )}
-        
-        <p className="text-sm text-gray-600">
-          ※相手も同様にあなたの名前を登録すると、マッチングが成立します
-        </p>
-      </div>
-      
-      {/* 登録した会いたい人リスト */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4">あなたが会いたい人</h2>
-        {myMatches.length > 0 ? (
-          <ul className="space-y-2">
-            {myMatches.map(match => (
-              <li 
-                key={match.id} 
-                className={`p-3 rounded-md ${match.matched ? 'bg-pink-100' : 'bg-gray-100'}`}
-              >
-                <div className="font-medium">{match.target_name}</div>
-                {match.matched && (
-                  <div className="text-sm text-pink-600 font-medium mt-1">
-                    マッチングしました！
+
+        {/* マッチング結果 */}
+        <div className="space-y-6">
+          <h3 className="text-2xl font-bold text-white">マッチング状況</h3>
+          
+          {myMatches.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">💝</div>
+              <p className="text-gray-300 text-lg">まだマッチングがありません</p>
+              <p className="text-gray-400 mt-2">会いたい人を登録してマッチングを始めましょう</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {myMatches.map((match, index) => (
+                <div key={index} className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        match.is_matched 
+                          ? 'bg-gradient-to-r from-orange-500 to-red-500' 
+                          : 'bg-white/10 border border-white/20'
+                      }`}>
+                        <span className="text-white font-bold text-lg">
+                          {match.is_matched ? '🎉' : '⏳'}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-white">{match.target_name}</h4>
+                        <p className={`text-sm ${
+                          match.is_matched ? 'text-orange-300' : 'text-gray-400'
+                        }`}>
+                          {match.is_matched ? 'マッチング成立！' : 'マッチング待ち'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {match.is_matched && (
+                      <div className="text-right">
+                        <p className="text-sm text-gray-300 mb-2">連絡先を交換しよう</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => alert('連絡先交換機能は開発中です')}
+                            className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
+                          >
+                            連絡先交換
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500">まだ登録されていません</p>
-        )}
-      </div>
-      
-      {/* マッチング結果 */}
-      {myMatches.some(match => match.matched) && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">マッチング成立！</h2>
-          <p className="mb-4">以下の人もあなたに会いたいと思っています:</p>
-          <ul className="space-y-2">
-            {myMatches
-              .filter(match => match.matched)
-              .map(match => (
-                <li key={match.id} className="p-3 bg-pink-100 rounded-md">
-                  <div className="font-medium">{match.target_name}</div>
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
-
-      {/* 【新機能】課金オプションモーダル */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">いいね制限に達しました</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              今月のいいね制限を超えました。以下のオプションからお選びください：
-            </p>
-            
-            <div className="space-y-3">
-              <button className="w-full bg-purple-500 text-white py-3 px-4 rounded-md hover:bg-purple-600">
-                ✨ プレミアムプラン（月1,000円）
-                <div className="text-xs text-purple-100 mt-1">無制限いいね</div>
-              </button>
-              
-              {/* 追加いいね購入 */}
-              {!likeStatus?.plan?.isPremium && (
-                <button className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-600">
-                  💰 追加いいね（300円）
-                  <div className="text-xs text-orange-100 mt-1">1回限り</div>
-                </button>
-              )}
-
-              {/* プレミアムプランユーザー向けのメッセージ */}
-              {likeStatus?.plan?.isPremium && (
-                <div className="w-full bg-purple-100 text-purple-700 py-3 px-4 rounded-md text-center">
-                  <div className="font-medium">✨ プレミアムプラン加入中</div>
-                  <div className="text-xs mt-1">無制限いいねをお楽しみいただけます</div>
+                  
+                  {match.is_matched && (
+                    <div className="mt-4 p-4 bg-orange-500/20 border border-orange-500/30 rounded-lg">
+                      <p className="text-orange-300 text-sm">
+                        🎉 おめでとうございます！{match.target_name}さんとマッチングしました。
+                        懐かしい思い出話に花を咲かせましょう！
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              <button 
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 課金モーダル */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-md w-full border border-white/20">
+            <h3 className="text-2xl font-bold mb-6 text-white text-center">プレミアムプラン</h3>
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
+                </div>
+                <span className="text-white">無制限のいいね</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
+                </div>
+                <span className="text-white">優先サポート</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
+                </div>
+                <span className="text-white">広告なし</span>
+              </div>
+            </div>
+            <div className="text-center mb-6">
+              <p className="text-3xl font-bold text-white">¥500</p>
+              <p className="text-gray-300">月額</p>
+            </div>
+            <div className="flex gap-3">
+              <button
                 onClick={() => setShowPaymentModal(false)}
-                className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+                className="flex-1 bg-white/10 backdrop-blur-sm text-white border border-white/20 py-3 rounded-lg hover:bg-white/20 transition-all duration-300"
               >
                 キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  alert('課金機能は開発中です');
+                  setShowPaymentModal(false);
+                }}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
+              >
+                アップグレード
               </button>
             </div>
           </div>

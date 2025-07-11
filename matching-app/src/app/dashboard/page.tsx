@@ -195,230 +195,208 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>読み込み中...</p>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-xl">R</span>
+          </div>
+          <p className="text-lg font-medium">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">ダッシュボード</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => router.push('/admin/test')}
-            className="bg-yellow-500 text-white px-3 py-2 rounded-md hover:bg-yellow-600 text-sm"
-          >
-            🧪 テスト
-          </button>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
-          >
-            ログアウト
-          </button>
-        </div>
-      </div>
-
-      {/* 【新機能】いいね制限状況表示 */}
-      {likeStatus && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 p-6 rounded-lg mb-8">
+    <div className="min-h-screen bg-black text-white">
+      {/* ヘッダー */}
+      <header className="bg-black/80 backdrop-blur-sm border-b border-white/10 sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                {likeStatus.plan.isPremium ? '✨ プレミアムプラン' : '🆓 無料プラン'}
-              </h2>
-              <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-600">
-                  {likeStatus.plan.isPremium ? (
-                    <span className="text-purple-600 font-medium">無制限いいね</span>
-                  ) : (
-                    <span>
-                      今月のいいね: <span className="font-bold text-blue-600">
-                        {likeStatus.usage.remainingLikes}/{likeStatus.usage.totalAvailable}
-                      </span> 残り
-                    </span>
-                  )}
-                </div>
-                {!likeStatus.plan.isPremium && likeStatus.usage.remainingLikes === 0 && (
-                  <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-                    制限に達しました
-                  </span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">R</span>
+              </div>
+              <h1 className="text-2xl font-bold text-white">Reunion</h1>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
+            >
+              ログアウト
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-6 py-8">
+        {/* ウェルカムセクション */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold mb-4">
+            おかえりなさい！
+          </h2>
+          <p className="text-gray-300 text-lg">
+            {user?.user_metadata?.name || user?.email}さんのダッシュボード
+          </p>
+        </div>
+
+        {/* いいね制限状況の表示 */}
+        {likeStatus && (
+          <div className="mb-8 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">いいね制限状況</h3>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                likeStatus.plan.isPremium 
+                  ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' 
+                  : 'bg-white/10 text-gray-300 border border-white/20'
+              }`}>
+                {likeStatus.plan.isPremium ? 'プレミアム' : 'フリープラン'}
+              </span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-gray-300">
+                残りいいね数: <span className="text-white font-semibold">{likeStatus.usage.remainingLikes}</span>
+                {likeStatus.usage.totalAvailable && (
+                  <span className="text-gray-400"> / {likeStatus.usage.totalAvailable}</span>
                 )}
-              </div>
-            </div>
-            <div className="text-right">
-              {!likeStatus.plan.isPremium && (
-                <button
-                  onClick={handlePaymentOptions}
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-md hover:from-purple-600 hover:to-blue-600 transition-all"
-                >
-                  アップグレード
-                </button>
+              </p>
+              {!likeStatus.limit.allowed && (
+                <p className="text-red-300 text-sm">{likeStatus.limit.message}</p>
               )}
             </div>
+            {!likeStatus.plan.isPremium && (
+              <button
+                onClick={handlePaymentOptions}
+                className="mt-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                プレミアムにアップグレード
+              </button>
+            )}
           </div>
-          
-          {/* プラン詳細 */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">プラン:</span>
-                <span className="font-medium">
-                  {likeStatus.plan.isPremium ? 'プレミアム' : '無料'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">今月の使用:</span>
-                <span className="font-medium">
-                  {likeStatus.usage.usedCount || 0}回
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6">
-          {error}
-        </div>
-      )}
-
-      {/* 新しいグループ作成 */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4">新しいグループを作成</h2>
-        <div className="flex mb-4">
-          <input
-            type="text"
-            value={newInviteName}
-            onChange={(e) => setNewInviteName(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
-            placeholder="グループ名（例: 高校同窓会2024）"
-          />
-          <button
-            onClick={handleCreateInvite}
-            disabled={isCreating}
-            className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600 disabled:opacity-50"
-          >
-            {isCreating ? '作成中...' : '作成'}
-          </button>
-        </div>
-        <p className="text-sm text-gray-600">
-          グループを作成すると、招待リンクが生成されます。友達に共有して参加してもらいましょう。
-        </p>
-      </div>
-
-      {/* 既存の招待リスト */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">あなたが作成したグループ</h2>
-        {invites.length > 0 ? (
-          <div className="space-y-4">
-            {invites.map(invite => (
-              <div key={invite.id} className="border border-gray-200 p-4 rounded-md">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">{invite.name}</h3>
-                  <span className="text-sm text-gray-500">
-                    {new Date(invite.created_at).toLocaleDateString('ja-JP')}
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                  <div>クリック数: {invite.clicks || 0}</div>
-                  <div>参加者数: {invite.signups || 0}</div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={`${window.location.origin}/invite/${invite.invite_code}`}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.invite_code}`);
-                      alert('招待リンクをコピーしました！');
-                    }}
-                    className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 whitespace-nowrap"
-                  >
-                    コピー
-                  </button>
-                  <button
-                    onClick={() => router.push(`/group/${invite.invite_code}`)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 whitespace-nowrap"
-                  >
-                    参加
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">まだグループが作成されていません。上のフォームから新しいグループを作成してみましょう。</p>
         )}
+
+        {/* 新しいグループ作成 */}
+        <div className="mb-8 p-6 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+          <h3 className="text-xl font-bold mb-4 text-white">新しいグループを作成</h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              value={newInviteName}
+              onChange={(e) => setNewInviteName(e.target.value)}
+              placeholder="グループ名を入力（例：〇〇高校3年A組）"
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+            <button
+              onClick={handleCreateInvite}
+              disabled={isCreating}
+              className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              {isCreating ? '作成中...' : '作成'}
+            </button>
+          </div>
+          {error && (
+            <p className="mt-4 text-red-300 text-sm">{error}</p>
+          )}
+        </div>
+
+        {/* 作成したグループ一覧 */}
+        <div className="space-y-6">
+          <h3 className="text-2xl font-bold text-white">作成したグループ</h3>
+          {invites.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📝</div>
+              <p className="text-gray-300 text-lg">まだグループを作成していません</p>
+              <p className="text-gray-400 mt-2">上のフォームから新しいグループを作成しましょう</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {invites.map((invite) => (
+                <div key={invite.id} className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/20 hover:bg-white/15 transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="text-xl font-bold text-white mb-2">{invite.group_name}</h4>
+                      <div className="space-y-1">
+                        <p className="text-gray-300">
+                          <span className="font-medium">招待コード:</span> 
+                          <span className="ml-2 font-mono bg-white/10 px-2 py-1 rounded text-orange-300">
+                            {invite.invite_code}
+                          </span>
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">クリック数:</span> 
+                          <span className="ml-2 text-white">{invite.click_count || 0}回</span>
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">作成日:</span> 
+                          <span className="ml-2 text-white">{new Date(invite.created_at).toLocaleDateString()}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.invite_code}`)}
+                        className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-300"
+                      >
+                        URLをコピー
+                      </button>
+                      <button
+                        onClick={() => router.push(`/group/${invite.invite_code}`)}
+                        className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
+                      >
+                        グループを見る
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 【新機能】課金オプションモーダル */}
+      {/* 課金モーダル */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">プランをアップグレード</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              より多くのマッチングを楽しむために、プランをアップグレードしませんか？
-            </p>
-            
-            <div className="space-y-4">
-              {/* プレミアムプラン */}
-              <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-semibold text-purple-800">✨ プレミアムプラン</h4>
-                  <span className="text-purple-600 font-bold">月1,000円</span>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-md w-full border border-white/20">
+            <h3 className="text-2xl font-bold mb-6 text-white text-center">プレミアムプラン</h3>
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
                 </div>
-                <ul className="text-sm text-purple-700 space-y-1 mb-3">
-                  <li>• 無制限いいね</li>
-                  <li>• 優先表示（今後追加予定）</li>
-                  <li>• 詳細分析（今後追加予定）</li>
-                </ul>
-                <button className="w-full bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600">
-                  プレミアムプランに加入
-                </button>
+                <span className="text-white">無制限のいいね</span>
               </div>
-
-              {/* 単発購入 */}
-              {!likeStatus?.plan?.isPremium && (
-                <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold text-orange-800">💰 追加いいね</h4>
-                    <span className="text-orange-600 font-bold">300円</span>
-                  </div>
-                  <p className="text-sm text-orange-700 mb-3">
-                    今月限定で追加で1回いいねできます
-                  </p>
-                  <button className="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600">
-                    追加いいねを購入
-                  </button>
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
                 </div>
-              )}
-
-              {/* プレミアムプランユーザー向けのメッセージ */}
-              {likeStatus?.plan?.isPremium && (
-                <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold text-purple-800">✨ プレミアムプラン加入中</h4>
-                  </div>
-                  <p className="text-sm text-purple-700">
-                    無制限いいねをお楽しみいただけます。追加購入は不要です。
-                  </p>
+                <span className="text-white">優先サポート</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
                 </div>
-              )}
-              
-              <button 
+                <span className="text-white">広告なし</span>
+              </div>
+            </div>
+            <div className="text-center mb-6">
+              <p className="text-3xl font-bold text-white">¥500</p>
+              <p className="text-gray-300">月額</p>
+            </div>
+            <div className="flex gap-3">
+              <button
                 onClick={() => setShowPaymentModal(false)}
-                className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+                className="flex-1 bg-white/10 backdrop-blur-sm text-white border border-white/20 py-3 rounded-lg hover:bg-white/20 transition-all duration-300"
               >
                 キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  alert('課金機能は開発中です');
+                  setShowPaymentModal(false);
+                }}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300"
+              >
+                アップグレード
               </button>
             </div>
           </div>
