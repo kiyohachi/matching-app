@@ -198,7 +198,7 @@ function DashboardContent() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <span className="text-white font-bold text-xl">R</span>
+            <span className="text-white font-bold text-xl">r</span>
           </div>
           <p className="text-lg font-medium">読み込み中...</p>
         </div>
@@ -214,9 +214,9 @@ function DashboardContent() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">R</span>
+                <span className="text-white font-bold text-lg">r</span>
               </div>
-              <h1 className="text-2xl font-bold text-white">Reunion</h1>
+              <h1 className="text-2xl font-bold text-white">remeet</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button

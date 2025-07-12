@@ -143,9 +143,9 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">R</span>
+                <span className="text-white font-bold text-lg">r</span>
               </div>
-              <h1 className="text-2xl font-bold text-white drop-shadow-lg">Reunion</h1>
+              <h1 className="text-2xl font-bold text-white drop-shadow-lg">remeet</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -216,7 +216,7 @@ export default function Home() {
                 </h4>
                 <p className="text-2xl text-white/90 leading-relaxed max-w-2xl mx-auto">
                   同窓会やクラス会のLINEグループに<br />
-                  ReunionのURLを送信するだけで開始
+                  remeetのURLを送信するだけで開始
                 </p>
               </div>
 
@@ -374,23 +374,23 @@ export default function Home() {
       </main>
 
       {/* フッター */}
-      <footer className="relative z-10 bg-black/80 backdrop-blur-sm text-white py-16">
+      <footer className="relative z-10 bg-black/80 backdrop-blur-sm text-white py-8">
         <div className="container mx-auto px-6 text-center">
-          <div className="flex items-center justify-center space-x-3 mb-6">
+          <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">R</span>
+              <span className="text-white font-bold text-xl">r</span>
             </div>
-            <h3 className="text-3xl font-bold">Reunion</h3>
+            <h3 className="text-3xl font-bold">remeet</h3>
           </div>
-          <p className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto">
+          <p className="text-gray-300 text-lg mb-4 max-w-2xl mx-auto">
             学校時代の仲間との再会をサポートする安全なマッチングアプリ
           </p>
-          <div className="flex justify-center space-x-8 mb-8">
+          <div className="flex justify-center space-x-8 mb-4">
             <a href="#" className="text-gray-400 hover:text-white transition-colors">プライバシーポリシー</a>
             <a href="#" className="text-gray-400 hover:text-white transition-colors">利用規約</a>
             <a href="#" className="text-gray-400 hover:text-white transition-colors">お問い合わせ</a>
           </div>
-          <p className="text-gray-500">&copy; 2024 Reunion. All rights reserved.</p>
+          <p className="text-gray-500">&copy; 2024 remeet. All rights reserved.</p>
         </div>
       </footer>
     </div>
